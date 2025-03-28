@@ -1,0 +1,23 @@
+{
+  "name": "desktop",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@react-native-clipboard/clipboard": "^1.16.2",
+    "electron": "^35.1.1",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "@babel/types": "^7.27.0",
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__generator": "^7.6.8",
+    "@types/babel-generator": "^6.25.8"
+  }
+}

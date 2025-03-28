@@ -1,0 +1,28 @@
+# Node.js dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Expo (React Native)
+.mobile/.expo/
+.mobile/.expo-shared/
+.mobile/android/
+.mobile/ios/
+.mobile/ios/Pods/
+.mobile/ios/*.xcworkspace
+
+# Electron
+.desktop/out/
+.desktop/build/
+.desktop/dist/
+.desktop/*.log
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# VS Code settings
+.vscode/
