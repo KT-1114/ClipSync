@@ -1,5 +1,4 @@
 import { Server as SocketIOServer } from "socket.io";
-import { networkInterfaces } from "os";
 import ipaddr from "ipaddr.js";
 
 const setupSocket = (server) => {
@@ -11,104 +10,70 @@ const setupSocket = (server) => {
     },
   });
 
-  const userSocketMap = new Map();
-
-  const disconnect = (socket) => {
-    for (const [userIP, socketId] of userSocketMap.entries()) {
-      if (socketId === socket.id) {
-        userSocketMap.delete(userIP);
-        console.log(`User IP address Disconnected: ${userIP}`);
-        break;
-      }
-    }
-  };
-
-  const sendMessage = (message) => {
-    try {
-      for (const socketId of userSocketMap.values()) {
-        io.to(socketId).emit("receive-message", message);
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
-  };
-
-  function getLocalIPAndSubnet() {
-    const interfaces = networkInterfaces();
-    for (const interfaceName in interfaces) {
-      for (const iface of interfaces[interfaceName]) {
-        if (iface.family === "IPv4" && !iface.internal) {
-          return { ip: iface.address, subnet: iface.netmask };
-        }
-      }
-    }
-    return null;
-  }
+  // Map<subnetKey, Map<userIP, socketId>>
+  const subnetSocketMap = new Map();
 
   function applySubnetMask(ip, subnet) {
     const ipBytes = ipaddr.parse(ip).toByteArray();
     const subnetBytes = ipaddr.parse(subnet).toByteArray();
-
-    return ipBytes.map((byte, index) => byte & subnetBytes[index]);
+    return ipBytes.map((byte, i) => byte & subnetBytes[i]).join(".");
   }
 
-  function isSameNetwork(ip1, ip2, subnet) {
-    try {
-      const network1 = applySubnetMask(ip1, subnet);
-      const network2 = applySubnetMask(ip2, subnet);
+  function getSubnetKey(ip, subnet) {
+    return applySubnetMask(ip, subnet);
+  }
 
-      return network1.every((byte, index) => byte === network2[index]);
-    } catch (error) {
-      console.error("Error checking same network:", error);
-      return false;
+  function disconnect(socket) {
+    for (const [subnet, userMap] of subnetSocketMap.entries()) {
+      for (const [ip, sockId] of userMap.entries()) {
+        if (sockId === socket.id) {
+          userMap.delete(ip);
+          console.log(`Disconnected: ${ip} from subnet ${subnet}`);
+          if (userMap.size === 0) subnetSocketMap.delete(subnet);
+          return;
+        }
+      }
     }
   }
 
-  function checkSameWiFi(peerIP) {
-    const myInfo = getLocalIPAndSubnet();
-    console.log("myInfo:", myInfo);
+  function sendMessage(message, senderIP, subnetKey) {
+    const userMap = subnetSocketMap.get(subnetKey);
+    if (!userMap) return;
 
-    if (!myInfo) {
-        console.warn("Could not determine local network information.");
-        return false;
+    for (const [ip, sockId] of userMap.entries()) {
+      if (ip !== senderIP) {
+        // console.log(`Sending message from ${senderIP} to ${ip}: ${message}`);
+        io.to(sockId).emit("receive-message", message);
+      }
     }
+  }
 
-    if (!peerIP || typeof peerIP !== "string") {
-        console.error("Invalid peer IP received:", peerIP);
-        return false;
-    }
-
-    peerIP = peerIP.trim();
-
-    if (!ipaddr.isValid(peerIP)) {
-        console.error("Peer IP is not a valid IP address:", peerIP);
-        return false;
-    }
-
-    return isSameNetwork(myInfo.ip, peerIP, myInfo.subnet);
-}
-
-io.on("connection", (socket) => {
+  io.on("connection", (socket) => {
     const userIP = socket.handshake.query.userIP;
+    const subnet = socket.handshake.query.subnet;
 
-    if (!userIP) {
-        console.warn("User IP address not provided during connection.");
-        socket.disconnect(true); 
-        return;
+    if (!userIP || !subnet || !ipaddr.isValid(userIP) || !ipaddr.isValid(subnet)) {
+      console.warn("Invalid or missing userIP/subnet");
+      return socket.disconnect(true);
     }
 
-    if (checkSameWiFi(userIP)) {
-        userSocketMap.set(userIP, socket.id);
-        console.log(`User IP address connected: ${userIP} with socket ID: ${socket.id}`);
-    } else {
-        console.warn(`User IP (${userIP}) is not on the same network.`);
-        socket.disconnect(true); 
+    const subnetKey = getSubnetKey(userIP, subnet);
+
+    if (!subnetSocketMap.has(subnetKey)) {
+      subnetSocketMap.set(subnetKey, new Map());
     }
 
-    socket.on("sendMessage", (message) => sendMessage(message));
-    socket.on("disconnect", () => disconnect(socket));
-});
+    subnetSocketMap.get(subnetKey).set(userIP, socket.id);
+    // console.log(`Connected: ${userIP} under subnet ${subnetKey}`);
 
+    socket.on("sendMessage", (message) => {
+      sendMessage(message, userIP, subnetKey);
+    });
+
+    socket.on("disconnect", () => {
+      disconnect(socket);
+    });
+  });
 };
 
 export default setupSocket;
