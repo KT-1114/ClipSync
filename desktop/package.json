@@ -1,8 +1,10 @@
 {
   "name": "desktop",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "./dist/index.js",
   "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -10,14 +12,15 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@react-native-clipboard/clipboard": "^1.16.2",
-    "electron": "^35.1.1",
+    "dgram": "^1.0.1",
+    "electron": "^35.1.2",
+    "ip": "^2.0.1",
+    "ping": "^0.4.4",
+    "typescript": "^5.8.2",
     "ws": "^8.18.1"
   },
   "devDependencies": {
-    "@babel/types": "^7.27.0",
-    "@types/babel__core": "^7.20.5",
-    "@types/babel__generator": "^7.6.8",
-    "@types/babel-generator": "^6.25.8"
+    "@types/electron": "^1.4.38",
+    "@types/ws": "^8.18.1"
   }
 }

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clipboard Sync</title>
+</head>
+<body>
+    <h2>📋 Clipboard Sync</h2>
+
+    <input type="text" id="textInput" placeholder="Enter text here">
+    <button onclick="copyToClipboard()">Copy</button>
+    <button onclick="pasteFromClipboard()">Paste</button>
+
+    <p id="status"></p>
+
+    <script>
+        let lastClipboard = '';
+        setInterval(() => {
+            navigator.clipboard.readText().then(text => {
+                if (text && text !== lastClipboard) {
+                    lastClipboard = text;
+                    console.log('updated')
+                }
+            });
+        }, 500);
+
+        function copyToClipboard() {
+            const text = document.getElementById("textInput").value;
+            if (text.trim() === "") {
+                document.getElementById("status").innerText = "⚠️ Please enter text!";
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                lastClipboard = text;
+                document.getElementById("status").innerText = "✅ Copied!";
+            });
+        }
+
+        function pasteFromClipboard() {
+            navigator.clipboard.readText().then(text => {
+                document.getElementById("textInput").value = text;
+                document.getElementById("status").innerText = "✅ Pasted!";
+            });
+        }
+    </script>
+</body>
+</html>
