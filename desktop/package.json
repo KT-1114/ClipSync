@@ -1,26 +1,25 @@
 {
   "name": "desktop",
   "version": "1.0.0",
-  "main": "./dist/index.js",
+  "main": "src/main.js",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && electron .",
+    "start": "tsc && electron .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "dgram": "^1.0.1",
     "electron": "^35.1.2",
     "ip": "^2.0.1",
+    "os": "^0.1.2",
     "ping": "^0.4.4",
+    "socket.io-client": "^4.8.1",
     "typescript": "^5.8.2",
     "ws": "^8.18.1"
   },
   "devDependencies": {
     "@types/electron": "^1.4.38",
+    "@types/socket.io-client": "^3.0.0",
     "@types/ws": "^8.18.1"
   }
 }
