@@ -1,91 +1,189 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Clipboard Sync</title>
     <style>
-        body {
-            padding: 20px;
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-        }
-        .scroll-view {
-            width: 100%;
-            max-height: 70vh;
-            overflow-y: auto;
-            padding: 20px;
-        }
-        #textInput {
-            height: 40px;
-            border: 1px solid gray;
-            width: 80%;
-            margin-bottom: 20px;
-            padding: 8px;
-        }
-        .button-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        button {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        .copied-text {
-            margin-top: 10px;
-            color: red;
-            text-align: center;
-        }
-        .history-header {
-            margin-top: 30px;
-            font-weight: bold;
-            font-size: 16px;
-            color: #333;
-        }
-        .history-item {
-            color: #555;
-            font-size: 14px;
-            margin-top: 5px;
-            padding: 10px;
-            background-color: #f5f5f5;
-            border-radius: 5px;
-        }
-        #status {
-            margin-top: 10px;
-            font-weight: bold;
-        }
+      body {
+        padding: 20px;
+        font-family: system-ui, -apple-system, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+      }
+      .scroll-view {
+        width: 100%;
+        max-height: 70vh;
+        overflow-y: auto;
+        padding: 20px;
+      }
+      #textInput {
+        height: 40px;
+        border: 1px solid gray;
+        width: 80%;
+        margin-bottom: 20px;
+        padding: 8px;
+      }
+      .shortcut-note {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 5px;
+        margin: 10px 0;
+        border-radius: 4px;
+        font-size: 14px;
+        width: 80%;
+      }
+
+      .shortcut-note ul {
+        margin: 10px 0 0 0;
+        padding-left: 20px;
+      }
+
+      .shortcut-note li {
+        margin: 5px 0;
+        color: #664d03;
+      }
+
+      kbd {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 3px;
+        padding: 2px 6px;
+        font-family: monospace;
+        font-size: 12px;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+      }
+      .button-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .copied-text {
+        margin-top: 10px;
+        color: red;
+        text-align: center;
+      }
+      .history-header {
+        margin-top: 30px;
+        font-weight: bold;
+        font-size: 16px;
+        color: #333;
+      }
+      .history-item {
+        color: #555;
+        font-size: 14px;
+        margin-top: 5px;
+        padding: 10px;
+        background-color: #f5f5f5;
+        border-radius: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .copy-btn {
+        background-color: #4caf50;
+        color: white;
+        padding: 4px 8px;
+        font-size: 12px;
+        margin-left: 10px;
+        min-width: 60px;
+      }
+      .copy-btn:hover {
+        background-color: #45a049;
+      }
+      #status {
+        margin-top: 10px;
+        font-weight: bold;
+      }
+      .queue-controls {
+        margin-top: 10px;
+      }
+      .queue-active {
+        background-color: #f44336 !important;
+      }
+      .queue-item {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        margin: 5px 0;
+        background-color: #e3f2fd;
+        border-radius: 4px;
+        font-size: 14px;
+        justify-content: space-between;
+      }
+      .queue-progress {
+        color: #2196f3;
+        font-weight: bold;
+      }
+      .completed-item {
+        background-color: #e8f5e9;
+        opacity: 0.7;
+      }
     </style>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <h2>📋 Clipboard Sync</h2>
-        <div class="input-group">
-            <input type="text" id="textInput" placeholder="Type something here">
-        </div>
-        <div class="button-group">
-            <button onclick="copyToClipboard()">Copy to Clipboard</button>
-            <button id="historyBtn" onclick="toggleHistory()">View copied content</button>
-            <button onclick="resetContent()" style="background-color: #ff4444; color: white;">Reset</button>
-        </div>
-        <p id="status">⚪ Connecting...</p>
-        <!-- <div id="copiedContent" class="copied-text"></div> -->
-        <div id="historySection" class="scroll-view" style="display: none;">
-            <h3 class="history-header">Copied History:</h3>
-            <div id="historyItems"></div>
-        </div>
+      <h2>📋 Clipboard Sync</h2>
+      <div class="shortcut-note">
+        <p>📝 Paste Shortcuts:</p>
+        <ul>
+          <li>
+            Use <kbd>Ctrl</kbd> + <kbd>V</kbd> to paste queue items within this
+            app
+          </li>
+          <li>
+            Use <kbd>Ctrl</kbd> + <kbd>V</kbd> to paste & 
+            move to next item in the queue <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>V</kbd> in other apps
+            <br />
+          </li>
+        </ul>
+      </div>
+      <div class="input-group">
+        <input type="text" id="textInput" placeholder="Type something here" />
+      </div>
+      <div class="button-group">
+        <button onclick="copyToClipboard()">Copy to Clipboard</button>
+        <button id="historyBtn" onclick="toggleHistory()">
+          View copied content
+        </button>
+        <button id="startQueueBtn" onclick="startQueue()">Start Queue</button>
+        <button id="pasteQueueBtn" onclick="pasteQueue()" disabled>
+          Paste Queue
+        </button>
+        <button id="clearQueueBtn" onclick="clearQueue()">Clear Queue</button>
+        <button
+          onclick="resetContent()"
+          style="background-color: #ff4444; color: white"
+        >
+          Reset
+        </button>
+      </div>
+      <p id="queueStatus" style="color: #666; font-size: 14px"></p>
+      <p id="status">🔃 Connecting...</p>
+      <div id="queueSection" class="scroll-view" style="display: none">
+        <h3 class="history-header">Queue Items</h3>
+        <div id="queueItems"></div>
+      </div>
+      <div id="historySection" class="scroll-view" style="display: none">
+        <h3 class="history-header">Copied History:</h3>
+        <div id="historyItems"></div>
+      </div>
     </div>
 
     <script src="./src/renderer.js" type="module"></script>
-</body>
+  </body>
 </html>

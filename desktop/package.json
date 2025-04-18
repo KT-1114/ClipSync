@@ -1,15 +1,35 @@
 {
-  "name": "desktop",
+  "name": "clipsync-desktop",
   "version": "1.0.0",
+  "description": "ClipSync - Cross-platform clipboard sync application",
+  "author": {
+    "name": "Om Patel",
+    "email": "patel.om.22co@gmail.com"
+  },
   "main": "src/main.js",
   "scripts": {
     "build": "tsc",
     "start": "tsc && electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dist": "electron-builder",
+    "pack": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.clipsync.app",
+    "productName": "ClipSync",
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    },
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    }
   },
   "dependencies": {
+    "auto-launch": "^5.0.5",
     "dgram": "^1.0.1",
-    "electron": "^35.1.2",
+    "electron-store": "^8.1.0",
     "ip": "^2.0.1",
     "os": "^0.1.2",
     "ping": "^0.4.4",
@@ -20,6 +40,8 @@
   "devDependencies": {
     "@types/electron": "^1.4.38",
     "@types/socket.io-client": "^3.0.0",
-    "@types/ws": "^8.18.1"
+    "@types/ws": "^8.18.1",
+    "electron": "^35.1.5",
+    "electron-builder": "^24.13.3"
   }
 }
