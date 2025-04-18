@@ -132,6 +132,19 @@
         background-color: #e8f5e9;
         opacity: 0.7;
       }
+      .history-item img {
+        max-width: 200px;
+        max-height: 100px;
+        object-fit: contain;
+        margin-right: 10px;
+      }
+
+      .image-preview {
+        max-width: 100%;
+        margin: 10px 0;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
     </style>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   </head>
@@ -146,8 +159,9 @@
             app
           </li>
           <li>
-            Use <kbd>Ctrl</kbd> + <kbd>V</kbd> to paste & 
-            move to next item in the queue <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>V</kbd> in other apps
+            Use <kbd>Ctrl</kbd> + <kbd>V</kbd> to paste & move to next item in
+            the queue <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>V</kbd> in other
+            apps
             <br />
           </li>
         </ul>

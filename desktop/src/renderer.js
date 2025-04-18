@@ -8,7 +8,8 @@ let isPastingQueue = false;
 let copyQueue = [];
 let pasteInterval = null;
 let currentPasteIndex = -1;
-let isPollingPaused = false; // New flag to pause polling during reset
+let isPollingPaused = false;
+let lastClipboardImage = null;
 
 async function getUserIP() {
   try {
@@ -48,32 +49,55 @@ async function initializeSocket() {
   });
 
   // Clipboard polling
+
+  // setInterval(async () => {
+  //   if (isPollingPaused) return; // Skip polling if paused
+  //   try {
+  //     const text = await window.electronAPI.readClipboard();
+  //     if (
+  //       text &&
+  //       text !== lastClipboardContent &&
+  //       !isPastingQueue &&
+  //       text.trim()
+  //     ) {
+  //       lastClipboardContent = text;
+  //       if (isQueueActive) {
+  //         copyQueue.push(text);
+  //         const queueStatus = document.getElementById("queueStatus");
+  //         queueStatus.textContent = `Added to queue (${copyQueue.length} items)`;
+  //         updateQueueDisplay();
+  //         console.log("Added to queue:", text);
+  //       } else {
+  //         await updateClipboardContent(text);
+  //         socket.emit("sendMessage", text);
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error("Clipboard error:", error);
+  //   }
+  // }, 1000);
+
   setInterval(async () => {
-    if (isPollingPaused) return; // Skip polling if paused
+    if (isPollingPaused) return;
     try {
-      const text = await window.electronAPI.readClipboard();
-      if (
-        text &&
-        text !== lastClipboardContent &&
-        !isPastingQueue &&
-        text.trim()
-      ) {
-        lastClipboardContent = text;
-        if (isQueueActive) {
-          copyQueue.push(text);
-          const queueStatus = document.getElementById("queueStatus");
-          queueStatus.textContent = `Added to queue (${copyQueue.length} items)`;
-          updateQueueDisplay();
-          console.log("Added to queue:", text);
-        } else {
-          await updateClipboardContent(text);
-          socket.emit("sendMessage", text);
+        // Check for text content
+        const text = await window.electronAPI.readClipboard();
+        if (text && text !== lastClipboardContent && !isPastingQueue) {
+            handleNewClipboardText(text);
         }
-      }
+
+        // Check for image content
+        const hasImage = await window.electronAPI.isImageInClipboard();
+        if (hasImage) {
+            const imageDataUrl = await window.electronAPI.readClipboardImage();
+            if (imageDataUrl && imageDataUrl !== lastClipboardImage) {
+                handleNewClipboardImage(imageDataUrl);
+            }
+        }
     } catch (error) {
-      console.error("Clipboard error:", error);
+        console.error("Clipboard error:", error);
     }
-  }, 1000);
+}, 1000);
 }
 
 // Queue Functions
@@ -309,24 +333,25 @@ initializeSocket().catch((error) => {
   document.getElementById("status").innerText = "🔴 Initialization error";
 });
 
-function updateHistory() {
-  const historyItems = document.getElementById("historyItems");
-  historyItems.innerHTML = copiedHistory
-    .map(
-      (item, index) => `
-        <div class="history-item">
-          <span>${item}</span>
-          <button 
-            class="copy-btn" 
-            onclick="copyHistoryItem(${index})"
-          >
-            Copy
-          </button>
-        </div>
-      `
-    )
-    .join("");
-}
+// backup code for history display
+// function updateHistory() {
+//   const historyItems = document.getElementById("historyItems");
+//   historyItems.innerHTML = copiedHistory
+//     .map(
+//       (item, index) => `
+//         <div class="history-item">
+//           <span>${item}</span>
+//           <button 
+//             class="copy-btn" 
+//             onclick="copyHistoryItem(${index})"
+//           >
+//             Copy
+//           </button>
+//         </div>
+//       `
+//     )
+//     .join("");
+// }
 
 window.copyHistoryItem = async (index) => {
   const content = copiedHistory[index];
@@ -373,3 +398,74 @@ window.electronAPI.onGlobalPaste(async () => {
   });
   await window.dispatchEvent(e);
 });
+
+
+// Add these new functions
+async function handleNewClipboardText(text) {
+  lastClipboardContent = text;
+  if (isQueueActive) {
+      addToQueue(text);
+  } else {
+      await updateClipboardContent(text);
+      socket.emit("sendMessage", { type: 'text', content: text });
+  }
+}
+
+async function handleNewClipboardImage(imageDataUrl) {
+  lastClipboardImage = imageDataUrl;
+  copiedHistory = [{ type: 'image', content: imageDataUrl }, ...copiedHistory];
+  updateHistory();
+  socket.emit("sendMessage", { type: 'image', content: imageDataUrl });
+}
+
+// Update the socket receive handler
+socket.on("receive-message", (data) => {
+  if (typeof data === 'string') {
+      // Handle legacy text-only messages
+      updateClipboardContent(data);
+  } else if (data.type === 'text') {
+      updateClipboardContent(data.content);
+  } else if (data.type === 'image') {
+      window.electronAPI.writeClipboardImage(data.content);
+      copiedHistory = [{ type: 'image', content: data.content }, ...copiedHistory];
+      updateHistory();
+  }
+});
+
+// Update the history display function
+function updateHistory() {
+  const historyItems = document.getElementById("historyItems");
+  historyItems.innerHTML = copiedHistory
+      .map((item, index) => {
+          if (typeof item === 'string') {
+              // Handle legacy text-only items
+              return createTextHistoryItem(item, index);
+          }
+          return item.type === 'image' 
+              ? createImageHistoryItem(item.content, index)
+              : createTextHistoryItem(item.content, index);
+      })
+      .join("");
+}
+
+function createTextHistoryItem(text, index) {
+  return `
+      <div class="history-item">
+          <span>${text}</span>
+          <button class="copy-btn" onclick="copyHistoryItem(${index})">
+              Copy
+          </button>
+      </div>
+  `;
+}
+
+function createImageHistoryItem(imageDataUrl, index) {
+  return `
+      <div class="history-item">
+          <img src="${imageDataUrl}" style="max-width: 200px; max-height: 100px;" />
+          <button class="copy-btn" onclick="copyHistoryItem(${index})">
+              Copy
+          </button>
+      </div>
+  `;
+}

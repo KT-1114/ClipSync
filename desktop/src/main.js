@@ -1,4 +1,4 @@
-const { app, BrowserWindow, clipboard, ipcMain, Tray, Menu, globalShortcut } = require('electron');
+const { app, BrowserWindow, clipboard, ipcMain, Tray, Menu, globalShortcut,nativeImage } = require('electron');
 const path = require('path');
 const os = require('os');
 const AutoLaunch = require('auto-launch');
@@ -110,6 +110,28 @@ app.whenReady().then(async () => {
             }
         }
         return 'unknown';
+    });
+
+    ipcMain.handle('clipboard:hasImage', () => {
+        return clipboard.availableFormats().some(format => 
+            format.startsWith('image/'));
+    });
+
+    ipcMain.handle('clipboard:readImage', () => {
+        const image = clipboard.readImage();
+        if (image.isEmpty()) return null;
+        return image.toDataURL();
+    });
+
+    ipcMain.handle('clipboard:writeImage', (_, dataUrl) => {
+        try {
+            const image = nativeImage.createFromDataURL(dataUrl);
+            clipboard.writeImage(image);
+            return true;
+        } catch (error) {
+            console.error('Error writing image:', error);
+            return false;
+        }
     });
 
     const ret = globalShortcut.register('CommandOrControl+shift+V', () => {
