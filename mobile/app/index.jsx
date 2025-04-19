@@ -5,17 +5,18 @@ import {
   Button,
   TextInput,
   StyleSheet,
-  Image,
   ScrollView,
+  Image,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useSocket } from "../components/SocketProvider";
 
 export default function Index() {
   const [copiedItem, setCopiedItem] = useState(null);
+  const [imageUri, setImageUri] = useState(null);
+  const [isImage, setIsImage] = useState(false);
   const [copiedHistory, setCopiedHistory] = useState([]);
   const [inputText, setInputText] = useState("");
-  const [imageUrl, setImageUrl] = useState(null);
   const [lastClipboardContent, setLastClipboardContent] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -23,21 +24,34 @@ export default function Index() {
 
   useEffect(() => {
     const intervalId = setInterval(async () => {
-      const currentClipboardContent = await Clipboard.getStringAsync();
-      if (
-        currentClipboardContent &&
-        currentClipboardContent !== lastClipboardContent
-      ) {
-        console.log(
-          "New clipboard content detected via polling:",
-          currentClipboardContent
-        );
-        setCopiedItem(currentClipboardContent);
-        setCopiedHistory((prev) => [currentClipboardContent, ...prev]);
-        setLastClipboardContent(currentClipboardContent);
-        setImageUrl(null);
+      try {
+        setIsImage(await Clipboard.hasImageAsync());
+        if (isImage) {
+          console.log("Image detected in clipboard");
+          let uri = await Clipboard.getImageAsync({ format: "jpeg"});
+          if(!uri){
+            uri = await Clipboard.getImageAsync({ format: "png"});
+          }
+          setCopiedItem("Image copied");
+          setImageUri(uri);
+          setCopiedHistory((prev) => [uri, ...prev]);
+          setLastClipboardContent(uri);
+          if (socket) socket.emit("sendMessage", uri);
+          return;
+        }
+        else {
+          const text = await Clipboard.getStringAsync();
+          if (text && text !== lastClipboardContent) {
+            setCopiedItem(text);
+            setImageUri(null);
+            setCopiedHistory((prev) => [text, ...prev]);
+            setLastClipboardContent(text);
+            if (socket) socket.emit("sendMessage", text);
+          }
+        }
 
-        if (socket) socket.emit("sendMessage", currentClipboardContent);
+      } catch (error) {
+        console.error("Clipboard error:", error);
       }
     }, 2000);
 
@@ -47,11 +61,11 @@ export default function Index() {
   useEffect(() => {
     if (socket) {
       socket.on("receive-message", (data) => {
-        console.log("Received from another device:", data);
-        setCopiedItem(data);
+        const isImage = data.startsWith("data:image");
+        setCopiedItem(isImage ? "Image copied" : data);
+        setImageUri(isImage ? data : null);
         setCopiedHistory((prev) => [data, ...prev]);
         setLastClipboardContent(data);
-        setImageUrl(null);
         Clipboard.setStringAsync(data);
       });
     }
@@ -61,22 +75,10 @@ export default function Index() {
     await Clipboard.setStringAsync(inputText);
   };
 
-  const fetchCopiedContent = async () => {
-    setShowHistory(true);
-    if (await Clipboard.hasImageAsync()) {
-      const image = await Clipboard.getImageAsync({ format: "jpeg" });
-      setImageUrl(image.data);
-    }
-  };
-
   const resetContent = () => {
     setCopiedItem(null);
-    setImageUrl(null);
+    setImageUri(null);
     setInputText("");
-    setShowHistory(false);
-  };
-
-  const closeHistory = () => {
     setShowHistory(false);
   };
 
@@ -98,31 +100,43 @@ export default function Index() {
           onPress={() => setShowHistory((prev) => !prev)}
           color={showHistory ? "orange" : undefined}
         />
-
         <Button title="Reset" onPress={resetContent} color="red" />
 
-        {copiedItem && (
+        {copiedItem && !imageUri && (
           <Text selectable style={styles.copiedText}>
             {copiedItem}
           </Text>
         )}
 
-        {imageUrl && (
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.image}
-            resizeMode="contain"
-          />
+        {isImage && (
+          <>
+            <Text style={styles.copiedText}>Image copied</Text>
+            <Image
+              source={{ uri: imageUri?.data }}
+              style={styles.image}
+              resizeMode="contain"
+            />
+          </>
         )}
 
         {showHistory && copiedHistory.length > 0 && (
           <>
             <Text style={styles.historyHeader}>Copied History:</Text>
-            {copiedHistory.map((item, index) => (
-              <Text key={index} style={styles.historyItem} selectable>
-                {item}
-              </Text>
-            ))}
+            {copiedHistory.map((item, index) => {
+              const isImg = item.startsWith("data:image");
+              return isImg ? (
+                <Image
+                  key={index}
+                  source={{ uri: item }}
+                  style={styles.historyImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text key={index} style={styles.historyItem} selectable>
+                  {item}
+                </Text>
+              );
+            })}
           </>
         )}
       </ScrollView>
@@ -157,8 +171,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   image: {
-    width: "100%",
-    height: 200,
+    width: 250,
+    height: 250,
     marginTop: 20,
   },
   historyHeader: {
@@ -171,5 +185,11 @@ const styles = StyleSheet.create({
     color: "#555",
     fontSize: 14,
     marginTop: 5,
+  },
+  historyImage: {
+    width: 200,
+    height: 200,
+    marginTop: 10,
+    borderRadius: 10,
   },
 });
