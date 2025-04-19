@@ -49,55 +49,46 @@ async function initializeSocket() {
   });
 
   // Clipboard polling
-
-  // setInterval(async () => {
-  //   if (isPollingPaused) return; // Skip polling if paused
-  //   try {
-  //     const text = await window.electronAPI.readClipboard();
-  //     if (
-  //       text &&
-  //       text !== lastClipboardContent &&
-  //       !isPastingQueue &&
-  //       text.trim()
-  //     ) {
-  //       lastClipboardContent = text;
-  //       if (isQueueActive) {
-  //         copyQueue.push(text);
-  //         const queueStatus = document.getElementById("queueStatus");
-  //         queueStatus.textContent = `Added to queue (${copyQueue.length} items)`;
-  //         updateQueueDisplay();
-  //         console.log("Added to queue:", text);
-  //       } else {
-  //         await updateClipboardContent(text);
-  //         socket.emit("sendMessage", text);
-  //       }
-  //     }
-  //   } catch (error) {
-  //     console.error("Clipboard error:", error);
-  //   }
-  // }, 1000);
-
   setInterval(async () => {
+    // Skip polling if paused
     if (isPollingPaused) return;
+  
     try {
-        // Check for text content
-        const text = await window.electronAPI.readClipboard();
-        if (text && text !== lastClipboardContent && !isPastingQueue) {
-            handleNewClipboardText(text);
+      // --- TEXT HANDLING ---
+      const text = await window.electronAPI.readClipboard();
+      if (
+        text &&
+        text !== lastClipboardContent &&
+        !isPastingQueue &&
+        text.trim()
+      ) {
+        lastClipboardContent = text;
+        if (isQueueActive) {
+          copyQueue.push(text);
+          const queueStatus = document.getElementById("queueStatus");
+          queueStatus.textContent = `Added to queue (${copyQueue.length} items)`;
+          updateQueueDisplay();
+          console.log("Added to queue:", text);
+        } else {
+          await updateClipboardContent(text);
+          socket.emit("sendMessage", text);
         }
-
-        // Check for image content
-        const hasImage = await window.electronAPI.isImageInClipboard();
-        if (hasImage) {
-            const imageDataUrl = await window.electronAPI.readClipboardImage();
-            if (imageDataUrl && imageDataUrl !== lastClipboardImage) {
-                handleNewClipboardImage(imageDataUrl);
-            }
+      }
+  
+      // --- IMAGE HANDLING (ADDED FROM SECOND VERSION) ---
+      const hasImage = await window.electronAPI.isImageInClipboard();
+      if (hasImage) {
+        const imageDataUrl = await window.electronAPI.readClipboardImage();
+        if (imageDataUrl && imageDataUrl !== lastClipboardImage) {
+          handleNewClipboardImage(imageDataUrl);
         }
+      }
+  
     } catch (error) {
-        console.error("Clipboard error:", error);
+      console.error("Clipboard error:", error);
     }
-}, 1000);
+  }, 1000);
+  
 }
 
 // Queue Functions
@@ -333,25 +324,6 @@ initializeSocket().catch((error) => {
   document.getElementById("status").innerText = "🔴 Initialization error";
 });
 
-// backup code for history display
-// function updateHistory() {
-//   const historyItems = document.getElementById("historyItems");
-//   historyItems.innerHTML = copiedHistory
-//     .map(
-//       (item, index) => `
-//         <div class="history-item">
-//           <span>${item}</span>
-//           <button 
-//             class="copy-btn" 
-//             onclick="copyHistoryItem(${index})"
-//           >
-//             Copy
-//           </button>
-//         </div>
-//       `
-//     )
-//     .join("");
-// }
 
 window.copyHistoryItem = async (index) => {
   const content = copiedHistory[index];
